@@ -22,7 +22,7 @@ nrow(arrests_raw)
 
 Summary Statistics:
 
-```{r}
+```{r, results = 'asis'}
 #arrests_date <- arrests_raw |> 
  # filter(!is.na(apprehension_date)) |> 
   #count(apprehension_date, sort = TRUE) |> 
@@ -39,10 +39,12 @@ arrests_state <- arrests_raw |>
   mutate(prop = round(n/sum(n), 2)) |> 
   kable(
     format = "latex", 
-    booktabs = TRUE, 
+    booktabs = TRUE,
+    longtable = TRUE, 
     col.names = c("State", "Count", "Proportion"), 
     caption = "ICE Arrests by State, Oct. 2022- Mar. 2026 "
-  )
+  ) |> 
+  kable_styling(latex_options = c("repeat_header"))
 
 arrests_threat <- arrests_raw |> 
   filter(!is.na(case_threat_level)) |> 
@@ -87,9 +89,16 @@ arrests_birth_year <- arrests_raw |>
 
 #arrests_date
 arrests_state
+cat("\\clearpage")
+
 arrests_threat
+cat("\\clearpage")
+
 arrests_gender
+cat("\\clearpage")
+
 arrests_birth_year
+cat("\\clearpage")
 
 
 ```
@@ -119,13 +128,28 @@ plot_usmap(data= arrest_state_count, values = "n", color = "white") +
 Line Graph:
 
 ```{r}
-arrests_date <- arrests_raw |> 
-  filter(!is.na(apprehension_date)) |> 
-  mutate(date = as.Date(apprehension_date)) |> 
-  count(date)
 
-arrests_graph <- ggplot(arrests_date, aes( x= date, y = n)) + 
-  geom_line(color= "blue") 
+arrests_weekly <- arrests_raw |> 
+  filter(!is.na(apprehension_date)) |>
+  mutate(week = floor_date(as.Date(apprehension_date), "week")) |>
+  count(week, name = "arrests")
+  
+key_date <- data.frame(
+  date = as.Date(c("2024-11-05", "2025-01-20")), 
+  label = c("2024\nelection", "Trump\ninauguration"), 
+  y_pos = c(9750, 8000))
 
-arrests_graph
+arrests_line <- ggplot(arrests_weekly, aes( x= week, y = arrests)) + 
+  geom_area(fill = "darkblue", alpha = .4) + 
+  geom_line(color = "darkblue") + 
+  geom_vline(data = key_date, aes(xintercept = date), 
+             color = "red", linetype = "dashed") + 
+  geom_text(data = key_date, aes(x = date, label = label, y = y_pos)) + 
+  scale_x_date(limits = as.Date(c("2022-10-01", "2026-03-31"))) + 
+  labs(title = "Ice Arrests Per Week from Oct. 2022 - Mar. 2026",
+       x = "Oct. 2022 - Mar. 2026", 
+                y = "Count of Arrests per Week")
+   
+arrests_line
+
 ```
