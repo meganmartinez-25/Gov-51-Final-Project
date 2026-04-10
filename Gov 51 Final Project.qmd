@@ -1,0 +1,131 @@
+---
+title: "Gov 51 Final Project"
+format: pdf
+editor: visual
+---
+
+## How does media impact bureaucratic action?
+
+Part 1: Reading in the data
+
+```{r}
+
+library(tidyverse)
+library(readxl)
+library(kableExtra)
+
+arrests_raw <- read.csv("data/raw/arrests_state_filled.csv")
+
+nrow(arrests_raw)
+
+```
+
+Summary Statistics:
+
+```{r}
+#arrests_date <- arrests_raw |> 
+ # filter(!is.na(apprehension_date)) |> 
+  #count(apprehension_date, sort = TRUE) |> 
+  #kable(
+  #  format = "latex", 
+  #  booktabs = TRUE, 
+ #   col.names = c("Date", "Count"), 
+ #   caption = "ICE Arrests by Date, Oct. 2022- Mar. 2026 "
+ # )
+
+arrests_state <- arrests_raw |> 
+  filter(!is.na(apprehension_state)) |> 
+  count(apprehension_state, sort = TRUE) |> 
+  mutate(prop = round(n/sum(n), 2)) |> 
+  kable(
+    format = "latex", 
+    booktabs = TRUE, 
+    col.names = c("State", "Count", "Proportion"), 
+    caption = "ICE Arrests by State, Oct. 2022- Mar. 2026 "
+  )
+
+arrests_threat <- arrests_raw |> 
+  filter(!is.na(case_threat_level)) |> 
+  count(case_threat_level, sort = TRUE) |> 
+  mutate(prop = round(n/sum(n), 2)) |> 
+  kable(
+    format = "latex", 
+    booktabs = TRUE, 
+    col.names = c("Threat Level", "Count", "Proportion"), 
+    caption = "ICE Arrests by Threat Level, Oct. 2022- Mar. 2026 "
+  )
+
+arrests_gender <- arrests_raw |> 
+  filter(!is.na(gender), 
+         gender != "", gender != "Unknown") |> 
+  count(gender, sort = TRUE) |> 
+  mutate(prop = round(n/sum(n), 2)) |> 
+  kable(
+    format = "latex", 
+    booktabs = TRUE, 
+    col.names = c("Gender", "Count", "Proportion"), 
+    caption = "ICE Arrests by Gender, Oct. 2022- Mar. 2026"
+  )
+
+arrests_birth_year <- arrests_raw |> 
+  filter(!is.na(birth_year)) |>
+  mutate(arrest_age_group = case_when( 
+    2026 - birth_year <18 ~ "Under 18", 
+    2026 - birth_year >= 18 & 2026- birth_year <= 25 ~ "18-25", 
+    2026 - birth_year >= 26 & 2026- birth_year <= 35 ~ "26-35",  
+    2026 - birth_year >= 36 & 2026- birth_year <= 45 ~ "36-45", 
+    2026 - birth_year >=46 ~ "Over 45")) |> 
+  count(arrest_age_group, sort = TRUE) |> 
+  mutate(prop = round(n/sum(n), 4)) |> 
+  kable(
+    format = "latex", 
+    booktabs = TRUE, 
+    col.names = c("Age Group", "Count", "Proportion"), 
+    caption = "ICE Arrests by Birth Year, Oct. 2022- Mar. 2026 "
+  )
+
+
+#arrests_date
+arrests_state
+arrests_threat
+arrests_gender
+arrests_birth_year
+
+
+```
+
+Due to majority of my critical variables being character strings, I chose to do counts and proportions for my summary statistics, to better understand the patterns, most common characters within each variable, and the distribution between the characters. This is crucial to understand because my analysis focuses on the volume and distribution over time, so with variables coded as words, it is important to have an accurate reading and representation of these.
+
+MAP Visual:
+
+```{r}
+library(usmap)
+
+arrest_state_count <- arrests_raw |> 
+   filter(!is.na(apprehension_state)) |> 
+  count(apprehension_state, sort = TRUE) |> 
+  mutate(prop = round(n/sum(n), 2)) |> 
+  rename(state = apprehension_state)
+
+plot_usmap(data= arrest_state_count, values = "n", color = "white") +
+  scale_fill_continuous(
+    low = "lightblue", high = "darkblue", 
+    name = "ICE Arrests"
+  ) + 
+  labs( 
+    title = "ICE Arrests by State")
+```
+
+Line Graph:
+
+```{r}
+arrests_date <- arrests_raw |> 
+  filter(!is.na(apprehension_date)) |> 
+  mutate(date = as.Date(apprehension_date)) |> 
+  count(date)
+
+arrests_graph <- ggplot(arrests_date, aes( x= date, y = n)) + 
+  geom_line(color= "blue") 
+
+arrests_graph
+```
