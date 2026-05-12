@@ -1,0 +1,9 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*csv
+data/raw/arrests_state_filled.csv
+data/raw/ICE ERO Apprehension by AOR & Program (FY18).xlsx
+data/raw/*.csv
+data/
