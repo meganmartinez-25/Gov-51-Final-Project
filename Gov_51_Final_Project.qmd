@@ -3,7 +3,13 @@ title: "Media Mobilizing Action: Understanding the Media as a Signal for Bureauc
 Megan Martinez - Gov 51 Final Project"
 format: pdf
 editor: visual
+execute:
+  echo: false
+  warning: false
+  message: false
 ---
+
+Github: <https://github.com/meganmartinez-25/Gov-51-Final-Project/tree/main>
 
 ## How does media coverage impact bureaucratic action?
 
@@ -332,6 +338,7 @@ combined <- arrests_weekly |>
 **Correlations**
 
 ```{r}
+library(tidyverse)
 no_week_cor <-cor.test(combined$media_pct, combined$log_arrests)
 
  week1_cor <-cor.test(combined$media_lag1, combined$log_arrests)
@@ -340,11 +347,6 @@ week3_cor <- cor.test(combined$media_lag4, combined$log_arrests)
 week4_cor <- cor.test(combined$media_lag8, combined$log_arrests)
 
 
-no_week_cor
-week1_cor
-week2_cor
-week3_cor
-week4_cor
 
 correlations <- data.frame(
   lag = c("No Lag", "1-Week Lag", "2-Week Lag", "4-Week Lag", "8-Week Lag"),
@@ -392,9 +394,67 @@ ccf(combined$media_pct, combined$arrests,
     main = "Cross-Correlation: media coverage vs. ICE arrests ")
 ```
 
-A CCF with spikes that all surpass the blue dotted line indicates that each correlation for every time lag is statistically significant. This demonstrates what was previoiusly mathematically calculated. This allows us to visually see that across all the weeks there is a relationship between media coverage on immigration and log of ICE arrests that is statistically significant.
+A CCF with spikes that all surpass the blue dotted line indicates that each correlation for every time lag is statistically significant. This demonstrates what was previously mathematically calculated. This allows us to visually see that across all the weeks there is a relationship between media coverage on immigration and log of ICE arrests that is statistically significant.
 
 A CCF allows me to determine the similarities between the time series analysis for ICE arrests and Media on immigration, with a time lag placed on ICE arrests. This allows me to see if media coverage was actually influencing the volume of ICE arrests. The first CCF does not contain first-differencing, as a result it is currently including exogenous shocks that may be causing media and ICE arrests to move together. That is why we see each peak surpassing the dotted line, indicting each correlation is statistically significant. Therefore, because the exognous shock of President Trump's second term acted as an omitted variable, increasing both media coverage on immigration and ICE arrests, I completed a CCF documenting the period before Trump's second inauguration, and after his inauguration. This would allow me to determine if the relationship seen across times is consistent in each time period. However, because this is simply looking at correlations, we cannot say there is a causal relationship.
+
+**Dot Plot with Confidence Intervals**
+
+```{r}
+library(ggplot2)
+
+cor_plot <-  data.frame(
+  lag = c("No Lag", "1-Week Lag", "2-Week Lag", "4-Week Lag", "8-Week Lag"),
+  Correlation = round(c(
+    no_week_cor$estimate, 
+    week1_cor$estimate, 
+    week2_cor$estimate, 
+    week3_cor$estimate, 
+    week4_cor$estimate
+  ), 3), 
+  P_value = round(c(
+    no_week_cor$p.value, 
+    week1_cor$p.value, 
+    week2_cor$p.value, 
+    week3_cor$p.value, 
+    week4_cor$p.value
+  ), 15), 
+  CI_lower = c(
+    no_week_cor$conf.int[1], 
+    week1_cor$conf.int[1], 
+    week2_cor$conf.int[1], 
+    week3_cor$conf.int[1], 
+    week4_cor$conf.int[1]), 
+  CI_upper = c(
+    no_week_cor$conf.int[2], 
+    week1_cor$conf.int[2], 
+    week2_cor$conf.int[2], 
+    week3_cor$conf.int[2], 
+    week4_cor$conf.int[2])
+) |> mutate(
+  Significant = case_when(
+    P_value < 0.001 ~ "***", 
+      P_value < 0.01 ~ "**", 
+      P_value < 0.05 ~ "*", 
+      TRUE ~ ""
+  )
+)|> 
+  ggplot(aes(x = lag, y = Correlation)) + 
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") + 
+  geom_errorbar(aes(ymin = CI_lower, ymax = CI_upper), 
+               width = 0.2, color = "darkred") + 
+  geom_point(size = 4, color = "darkred") + 
+  labs(
+    title = "Correlation between Media Coverage on Immigration and Log ICE Arrests", 
+    x= "Time Lags", 
+    y = "Correlation (r)", 
+    caption = "Error Bars indicate 95% confidence intervals") + 
+      theme_minimal()
+
+cor_plot
+```
+
+This dot plot with confidence intervals allows us to see that the highest correlation between media coverage on immigration and log ICE arrests is when there is no lag. This is indicative of the two variables having similar patterns to one another. Yet, for each of the 1, 2, and 4 week lags, there still appears to be a moderate correlation, above .4. This positive correlation indicates that as media coverage on ICE increases, this is likely correlated with an increase in ICE arrests as well. The 8 week lag on the other hand is the lowest correlation, so this time gap between media coverage on immigration and log ICE arrests is likely to be more correlated in shorter intervals of time rather than longer ones.
 
 **CCF Graph Pre-Trump and Post-Trump**
 
@@ -428,9 +488,6 @@ lm1 <- lm(log_arrests~media_pct, data = combined)
 lm2 <- lm(log_arrests~media_lag1, data = combined)
 lm3 <- lm(log_arrests~media_lag4, data = combined)
 
-summary(lm1)
-summary(lm2)
-summary(lm3)
 
 
 library(modelsummary)
@@ -448,21 +505,15 @@ modelsummary(
 )
 ```
 
-This correlation holds extremely high statistical significance; however, it is very concerning to have such high rates because exogenous factors that have not been included may be impacting the outcome and correlation. Therefore, I used a first difference to account for the possibility that the high correlation may be an effect of the two variables (media coverage on immigration and ICE arrests) are simply moving in the same direction over time.
+This correlation holds extremely high statistical significance; however, it is very concerning to have such high rates because exogenous factors that have not been included may be impacting the outcome and correlation. Instead, this regression is showing that media is having a direct effect on ICE arrests, but there are other factors or even omitted variables that are biasing this relationship and making it appear to have a strong, and significant result, when in reality other variables are explaining more of the variation and relationship between media and ICE arrests. Nevertheless, these regression coefficients indicate:
 
-Using the first-difference, I will be specifically looking at the changes per week in media versus the volume of media. This is attempting to eliminate the issue of both media and ICE arrests trending together due to exogenous shocks, particularly the shock of President Trump who raised salience around immigration, but also took direct action in order to arrest more undocumented immigrants in the United States.
+-   No lag: for every 1 percentage point increase in media coverage on immigration, there would be a 0.097 increase in log arrests. 
 
--   No lag: for every 1 percentage point increase in media coverage on immigration, there would be a 0.024 increase in log arrests. 
+-   One week lag: for every 1 percentage point increase in media coverage on immigration, there would be a 0.094 increase in log arrests the following week. 
 
--   One week lag: for every 1 percentage point increase in media coverage on immigration, there would be a 0.015 increase in log arrests the following week. 
+-   Four week lag,: for every 1 percentage point increase in media coverage on immigration, there should be a 0.090 increase in log arrests in four weeks after.
 
--   Four week lag,: for every 1 percentage point increase in media coverage on immigration, there should be a 0.020 increase in log arrests in four weeks after. 
-
--   Eight week lag,: for every 1 percentage point increase in media coverage on immigration, there should be a 0.004 increase in log arrests in eight weeks after. 
-
--   Twelve week lag,: for every 1 percentage point increase in media coverage on immigration, there should be a 0.000 increase in log arrests in twelve weeks after. 
-
-In addition, i have an extremely low r\^2, which could indicate that if I factor in other variables, including President Trump and his administrative action, this may be able to account for more of the variation between media coverage on immigration and ICE arrests. However, my datasets did not include any other additional factors.
+In addition, I have an low r\^2, which could indicate that if I factor in other variables, including President Trump and his administrative action, this may be able to account for more of the variation between media coverage on immigration and ICE arrests. However, my data sets did not include any other additional factors. Yet, I will control for the Trump administration in the following regression.
 
 ```{r}
 ggplot(combined, aes(x = week)) +
@@ -481,7 +532,7 @@ ggplot(combined, aes(x = week)) +
        color = "") 
 ```
 
-This overlapped time series uses the Log of ICE arrests and Media Coverage on immigration in proportion to see if spikes in media coverage on immigration visually matched a spike in ICE arrests, or if these are related with a time lag.
+This overlapped time series uses the Log ICE arrests and Media Coverage on immigration in proportion to see if spikes in media coverage on immigration visually matched a spike in ICE arrests, or if these are related with a time lag. During this period, in particular after 2025, both media coverage on immigration and log ICE arrests begin to rise. However, there is a sharp dip before 2025 of ICE arrests, and it had gradually been decreasing from 2023 go 2025. Interestingly enough, the graph depicts that prior to 2025, the volume of media coverage on immigration was gradually increasing, but ICE arrests were falling during this time. This could be due to immigration being a large topic of debate during election season, and candidates would have been campaigning between 2024 to 2025.
 
 Time Split Pre-Trump vs. Post-Trump:
 
@@ -534,6 +585,18 @@ modelsummary(
 
 ```
 
+Next, I held President Trump's inauguration day constant by regressing log ICE arrests on media coverage on immigration before Trump's inauguration, and then after his inauguration. Before his inauguration, media coverage on immigration would negatively impact ICE arrests. The regression coefficients would be:
+
+-   If there was a one percentage point increase in media coverage on immigration, there would be 0.029 decrease in log ICE arrests. However, because this is not statistically significant, we cannot confidently say that this result is real and not simply chance.
+
+-   If there was a one percentage point increase in media coverage on immigration, then after a week, there would be a 0.046 decrease in log ICE arrests. This is statistically significant at the p\<0.05 scale. Therefore, this is more likely to be a real effect and not by chance and indicate that when media coverage on immigration increases, this may be associated with fewer ICE arrests the following week.
+
+-   If there is a one percentage point increase in media coverage on immigration, then after four weeks, there would be a 0.014 decrease in log ICE arrests. However, this result is not statistically significant, so we cannot be confident that this result is real and not simply by chance.
+
+Out of all three regression coefficients, there appears to be the largest change at the one week time lag. This could be due to a more rapid response to ICE bureuacrats who are more pressured to take active response, especially if immigration is becoming increasingly more salient in the news.
+
+In order to better understand the role of media, I looked towards specific polarized news sources in order to determine the effect of charged news sources on politically polarized states. Following the same procedures of before, I filtered the words "immigration," "immigrants," and "border" to represent discussions of immigration. Then I specifically looked at the New York Times and the Guardian to represent more liberal leaning news, and Fox News and the Federalist to represent conservative leaning media sources. I was then able to filter my ICE Arrests data to look at blue and red states specifically, and analyze the relationship between polarized media and the impact it may have on ICE action with various types of polarized states.
+
 National Coverage on Red vs. Blue States
 
 1\) Separate into Blue and Red States
@@ -574,14 +637,7 @@ arrests_red <- arrests_split %>% filter(state_type == "red")
 Time Series and Regression for Separate State Colors
 
 ```{r}
-# Step 1: Create red/blue arrest weekly aggregations
-arrests_split <- arrests_raw %>%
-  mutate(state_type = case_when(
-    apprehension_state %in% blue_states ~ "blue",
-    apprehension_state %in% red_states ~ "red",
-    TRUE ~ "other"
-  ))
-
+#Red and Blue State Aggregations
 blue_weekly <- arrests_split %>%
   filter(state_type == "blue") %>%
   mutate(week = floor_date(as.Date(apprehension_date), "week")) %>%
@@ -593,7 +649,8 @@ red_weekly <- arrests_split %>%
   mutate(week = floor_date(as.Date(apprehension_date), "week")) %>%
   group_by(week) %>%
   summarise(arrests = n())
-# Step 2: Build combined datasets exactly like your existing one
+
+#Build combined datasets 
 blue_combined <- blue_weekly |>
   inner_join(media_weekly, by = "week") |>
   filter(week != as.Date("2022-09-25")) |>
@@ -618,7 +675,7 @@ red_combined <- red_weekly |>
     post_trump = ifelse(week >= as.Date("2025-01-20"), 1, 0)
   )
 
-# Step 3: Time series plot
+# Time series plot
 bind_rows(
   blue_combined %>% mutate(state_type = "Blue States"),
   red_combined %>% mutate(state_type = "Red States")
@@ -627,7 +684,7 @@ ggplot(aes(x = week, y = log_arrests, color = state_type)) +
   geom_line() +
   scale_color_manual(values = c("Blue States" = "blue", "Red States" = "red")) +
   geom_vline(xintercept = as.Date("2024-11-05"), linetype = "dashed") +
-  geom_vline(xintercept = as.Date("2025-01-20"), linetype = "dashed", color = "purple") +
+  geom_vline(xintercept = as.Date("2025-01-20"), linetype = "dashed") +
   annotate("text", x = as.Date("2024-11-05"), y = Inf, label = "2024 election", 
            vjust = 2, hjust = -0.1, size = 3) +
   annotate("text", x = as.Date("2025-01-20"), y = Inf, label = "Trump inauguration", 
@@ -636,7 +693,14 @@ ggplot(aes(x = week, y = log_arrests, color = state_type)) +
        x = "Week", y = "Log Arrests", color = "") +
   theme_minimal()
 
-# Step 4: Regressions with post_trump control
+
+```
+
+This time series analysis indicated the volume of log arrests for both Red states and Blue states. Although they both follow similar trends, there is a significant gap between red and blue states, which indicates that red states on average, may be more likely to have high levels of ICE arrest rates than blue states. Therefore, regardless of media, they may always output higher levels of ICE arrests.
+
+# Regressions with Post-Trump Control for Blue and Red States 
+
+```{r}
 blue_m1 <- lm(log_arrests ~ media_pct + post_trump, data = blue_combined)
 blue_m2 <- lm(log_arrests ~ media_lag1 + post_trump, data = blue_combined)
 blue_m3 <- lm(log_arrests ~ media_lag4 + post_trump, data = blue_combined)
@@ -645,17 +709,52 @@ red_m1 <- lm(log_arrests ~ media_pct + post_trump, data = red_combined)
 red_m2 <- lm(log_arrests ~ media_lag1 + post_trump, data = red_combined)
 red_m3 <- lm(log_arrests ~ media_lag4 + post_trump, data = red_combined)
 
+modelsummary(
+  list(
+    "Blue: No Lag " = blue_m1, 
+    "Blue: 1 week Lag " = blue_m2,
+    "Blue: 4 week Lag " = blue_m3,
+    "Red: No Lag " = red_m1,
+    "Red: 1 week  Lag " = red_m2,
+    "Red: 4 week Lag " = red_m3
+    
+  ),
+  stars = TRUE, 
+  coef_rename = c( 
+    "media_pct" = "Media Coverage, Same Week in Percentage", 
+    "media_lag1" = "Media Coverage, 1 Week Lag in Percentage", 
+    "media_lag4" = "Media Coverage, 4 Week Lag in Percentage", 
+    "post_trump" = "Post President Trump's Inauguration"), 
+  title = "National Media Coverage on Immigration and Log ICE Arrests: Red vs. Blue States", 
+  caption = "Models all control for Trump Inauguration"
+)
 
 
-summary(blue_m1)
-summary(blue_m2)
-summary(blue_m3)
-summary(red_m1)
-summary(red_m2)
-summary(red_m3)
 
-#table
-library(modelsummary)
+
+```
+
+These regressions are specifically looking at the relationship between national media coverage and ICE arrests in either red or blue states. The regression coefficients indicate:
+
+-   If there was a one percentage point increase in national media coverage on immigration, there would be 0.003 increase in log ICE arrests for blue states. However, because this is not statistically significant, we cannot confidently say that this result is real and not simply chance.
+
+-   If there was a one percentage point increase in media coverage on immigration, then after a week, there would be a 0.006 decrease in log ICE arrests for blue states. However, because this is not statistically significant, we cannot confidently say that this result is real and not simply chance. In addition, it is very interesting to see that after a week, national media coverage on immigration no longer is associated with an increase in ICE arrests, but rather a decrease in ICE arrests.
+
+-   If there is a one percentage point increase in media coverage on immigration, then after four weeks, there would be a 0.018 decrease in log ICE arrests for blue states. However, this result is not statistically significant, so we cannot be confident that this result is real and not simply by chance. This continues to follow the pattern of longer lags being associated with decreases in ICE arrests.
+
+-   In addition, because I am controlling for Trump's Inauguration, this covariate coefficient indicates that when President Trump was inaugurated, there would be a increase for log ICE arrests of 0.850 for blue states. This is a very large coefficient and is highly statistically significant which indicates that it is unlikely that we would be receiving this coefficient purely by chance, and there may be a relationship between the two variables.
+
+-   For red states, when President Trump was inaugurated, there appeared to be a 0.939 increase in log ICE arrests. This result was also statistically significant and indicates that this coefficient is not likely to be recieved purely by chance. It is very interesting though that red states have a higher regression coefficient, which indicates that they are more likely to have a greater impact by Trump's inauguration on ICE arrests than red states. This may be a result of red states with previously high rates of arrests were Florida and Texas, and under the Trump administration, these immigration policies were heightened and enhanced which may have led states with already high immigration rates to become even higher.
+
+-   If there was a one percentage point increase in national media coverage on immigration, there would be 0.011 increase in log ICE arrests for red states. However, because this is not statistically significant, we cannot confidently say that this result is real and not simply chance.
+
+-   If there was a one percentage point increase in media coverage on immigration, then after a week, there would be a 0.005 increase in log ICE arrests for red states. However, because this is not statistically significant, we cannot confidently say that this result is real and not simply chance. This result is extremely small and indicates that a change in media coverage is not likely to have any effect on log ICE arrests for red states after one week.
+
+-   If there is a one percentage point increase in media coverage on immigration, then after four weeks, there would be a 0.001 increase in log ICE arrests. However, this result is not statistically significant, so we cannot be confident that this result is real and not simply by chance. This result is extremely small and indicates that a change in media coverage is not likely to have any effect on log ICE arrests for red states after four weeks.
+
+# Blue States Table
+
+```{r}
 
 library(modelsummary)
 
@@ -675,7 +774,14 @@ modelsummary(
   title = "Blue States: National Media Coverage Correlation With Log ICE Arrests"
 )
 
+```
+
+This table contains all of the same regression coefficients above, but this is selected to see only the blue state coefficients. However, the interpretations remain the same as stated above. Once again, the Trump Inauguration control is explaining a lot of variation in the data, which may indicate that it is acting as an omitted variable having a large effect on media and ICE arrests.
+
 # Red States Table
+
+```{r}
+
 modelsummary(
   list("No Lag"     = red_m1,
        "1-Week Lag" = red_m2,
@@ -691,11 +797,11 @@ modelsummary(
   title = "Red States: National Media Coverage Correlation With Log ICE Arrests"
 )
 
-
-
 ```
 
-Without Trump Control:
+This table contains all of the same regression coefficients above, but this is selected to see only the red state coefficients. However, the interpretations remain the same as stated above. Like the blue states, the Trump Inauguration variable is accounting for a large variation in the data which may indicate that it is an omitted variable. In addition, these coefficients are very small and likely indicate that the media has very little effect on log ICE arrests.
+
+Side by Side Trump Control:
 
 ```{r}
 #Without post_trump control
@@ -706,7 +812,6 @@ red_m1_raw <- lm(log_arrests ~ media_pct, data = red_combined)
 blue_m1_controlled <- lm(log_arrests ~ media_pct + post_trump, data = blue_combined)
 red_m1_controlled <- lm(log_arrests ~ media_pct + post_trump, data = red_combined)
 
-# Show both together so you can see what the control does
 modelsummary(
   list("Blue (raw)" = blue_m1_raw,
        "Blue (controlled)" = blue_m1_controlled,
@@ -722,6 +827,8 @@ modelsummary(
 )
 
 ```
+
+This table allows us to see how much the coefficients for media coverage change when the control of Post-Trump Inauguration is included. In particular, for both blue and red states, media coverage went from being a statistically significant coefficient to not, and losing much of its explanatory power. This indicates that media may not have as much explanatory power as originally thought.
 
 Liberal Media Impact on Blue States:
 
@@ -770,6 +877,18 @@ modelsummary(
 
 
 ```
+
+When looking specifically at the impact of liberal media coverage on blue states, each coefficient indicates:
+
+-   If there was a one percentage point increase in liberal national media coverage on immigration, there would be 0.032 increase in log ICE arrests for blue states. This is statistically significant at the p\< 0.01 level, and this indicates that it is very unlikely that these results are due to chance and not a relationship between the two variables.
+
+-   If there was a one percentage point increase in liberal national media coverage on immigration, then after a week, there would be a 0.028 increase in log ICE arrests for blue states. This is also statistically significant at the p\< 0.01 level, and this indicates that it is very unlikely that these results are due to chance.
+
+-   If there is a one percentage point increase in liberal national media coverage on immigration, then after four weeks, there would be a 0.024 increase in log ICE arrests for blue states. This is statistically significant at the p\< 0.05 level, and this indicates that it is very unlikely that these results are due to chance.
+
+-   In addition, because I am controlling for Trump's Inauguration, this covariate coefficient indicates that when President Trump was inaugurated, there would be a increase for log ICE arrests of 1.122 for blue states. This is a very large coefficient and is highly statistically significant at the p\< 0.001 which indicates that it is unlikely that we would be receiving this coefficient purely by chance, and there may be a relationship between the two variables.
+
+With all three coefficients being statistically significant, this indicates that there is likely a relationship between liberal national media coverage on immigration and ICE arrests in blue states. Nevertheless, these results are not very large, but they are very likely.
 
 Just looking at the comparison of the correlation Pre and Post-Trump's Inaugaration:
 
@@ -854,6 +973,16 @@ modelsummary(
 
 ```
 
+-   This is specifically analyzing the relationship between conservative media coverage and Log ICE arrests in red states, holding the Trump Inauguration constant. The coefficients indicate:
+
+-   If there was a one percentage point increase in conservative national media coverage on immigration, there would be 0.001 increase in log ICE arrests for red states. This is not statistically significant, and indicative of this association being posisbly due to chance.
+
+-   If there was a one percentage point increase in conservative national media coverage on immigration, then after a week, there would be a 0.002 decrease in log ICE arrests for red states. This is also not statistically significant, and indicative of this association being possibly due to chance.
+
+-   If there is a one percentage point increase in conservative national media coverage on immigration, then after four weeks, there would be a 0.004 decrease in log ICE arrests for red states. Last but not least, this was also is not statistically significant, and indicative of this association being possibly due to chance.
+
+-   In addition, because I am controlling for Trump's Inauguration, this covariate coefficient indicates that when President Trump was inaugurated, there would be a increase for log ICE arrests of 0.946 for red states. This is a very large coefficient and is highly statistically significant at the p\< 0.001 which indicates that it is unlikely that we would be receiving this coefficient purely by chance, and there may be a relationship between the two variables. In addition, this is much a larger coefficient than any of our media variables on the log ICE arrests which indicates that Trump's inauguration may have large explanatory power to reveal how log ICE arrests are changing over time.
+
 Red Media Split Pre and Post-Trump
 
 ```{r}
@@ -900,3 +1029,45 @@ Although the time series offers high external validity due to its analysis on ac
 Confounding variables may actually be driving media coverage and ICE arrests independently. For example, political events, such as Trump’s campaign and election in 2024, border crossing surges, and any policies passed by the congressional or executive branch, including Trump’s expansion of the DHS, may have both influenced arrests and brought additional coverage to the topic. In addition, it may be plausible that ICE arrests are actually shaping media coverage, and the time series, as a result, may reveal a reverse causal relationship. In fact, specific highly polarized or viral media may reach larger audiences including ICE bureaucrats, but this study treats all negative segments equally regardless of intensity, and applies the same categorization to positive segments. As a result, it is unlikely I can analyze the nuance and the volatility of certain immigration stories over others. 
 
  Many researchers have studied the influence of the media on public opinion, but few have analyzed the media as a direct signal to bureaucratic agencies. This paper examined the relationship between media coverage of immigration on ICE arrests nationwide. My goal with conducting this research is to evaluate whether the media distorts the opinions of agents who are supposed to be apolitical. Understanding the direct influence of the media on agencies could influence the way that policy makers regulate media because of its potential to influence policy that gets implemented.
+
+Reference List 
+
+Bordonada, M. Royo. 2022. “Corporate capture of public health by food industries in Europe.” European Journal of Public Health 32, (3). https://doi.org/10.1093/eurpub/ckac129.091. 
+
+Chavez, Leo R. 2013. The Latino Threat: Constructing Immigrants, Citizens, and the Nation, Second Edition. Stanford University Press. 
+
+Cohen, Bernard C. 1963. The Press and Foreign Policy. Princeton University Press. 
+
+Cohen, Stanley. 2002. Folk Devils and Moral Panics: The creation of the Mods and Rockers, Third Edition. Routledge. 
+
+DeMarzo, Peter M., Dimitri Vayanos, and Jeffrey Zwiebel. 2003. “Persuasion Bias, Social Influence, and Unidimensional Opinions.” The Quarterly Journal of Economics 118, (3). https://doi.org/10.1162/00335530360698469.
+
+Domhoff, William G., Ronald W. Cox, John L. Campbell, Richard W. Lachmann, Clarence Y.H. Lo, Beth Mintz, Joseph G. Peschek, Robert J.S. Ross, Daniel J. Schneider, Michael Schwartz, Kathleen C. Schwartzman, and Judith Stephan-Norris. 2017. Studying the Power Elite: Fifty Years of Who Rules America? Routledge Taylor and Francis Group. 
+
+“Deportation Data Project.” Deportation Data Project, deportationdata.org/. 
+
+Gilens, Martin and Craig Hertzman. 2003. “Corporate Ownership and News Bias: Newspaper Coverage of the 1996 Telecommunications Act.” Journal of Politics 62, (2): 369-386. https://doi.org/10.1111/0022-3816.00017. 
+
+Huber, John D. and Michael M. Ting. 2015. “Civil Service and Patronage in Democracies.” Working paper, Department of Political Science, Columbia University. polisci.columbia.edu/sites/polisci.columbia.edu/files/content/pdfs/Publications/Huber/Working%20Papers/huber%20ting%20personnel.
+
+“ICE Administrative Arrests.” Deportation Data Project, Oct. 2022- Mar. 2026, ice-arrests.apps.deportationdata.org. 
+
+Iyengar, Shanto and Donald R. Kinder. 1987. News that Matters: Television and American Opinion. University of Chicago Press. 
+
+McCombs, Maxwell E., and Donald L. Shaw. 1972. “The Agenda-Setting Functions of Mass Media.” The Public Opinion Quarterly 36, (2): 176-87. http://jstor.org/stable/2747787.
+
+Michael P. Vandenbergh, J. M. Gilligan, and H. Feurman. 2020. The New Revolving Door, 70 Case Western Reserve Law Review. 1121. https://doi.org/10.2139/SSRN.3570889. 
+
+Newport, Frank. 2018 “Immigration Jumps as Top Problem, Still Trails Government.” GALLUP, February 15. news.gallup.com/poll/227021/immigration-jumps-top-problem-trails-government.aspx.
+
+Saad, Lydia. 2014. “One in Six Say Immigration Most Important U.S. Problem.” GALLUP, July 16. news.gallup.com/poll/173306/one-six-say-immigration-important-problem.aspx.
+
+“Television News Archive.” Internet Archive, archive.org/details/tv. 
+
+“Unauthorized Immigrant Population Profiles.” Migration Policy Institute, www.migrationpolicy.org/programs/us-immigration-policy-program-data-hub/unauthorized-immigrant-population-profiles. 
+
+Walker, Edward T. 2009. “Privatizing Participation: Civic Change and the Organizational Dynamics of Grassroots Lobbying Firms.” American Sociological Review 74, (1). https://doi.org/10.1177/000312240907400105.
+
+Weber, Max. 1946. “Bureaucracy.” In From Max Weber: Essays in Sociology, edited by H.H. Gerth and C. Wright Mills, Oxford University Press. https://doi.org/10.4324/9780203452196.
+
+Yackee, Jason Webb and Susan Webb Yackee. 2006. “A Bias Towards Business? Assessing Interest Group Influence on the U.S. Bureaucracy.” The Journal of Politics 68, (1): 128-139. https://doi.org/10.1111/j.1468-2508.2006.00375.
